@@ -1,0 +1,98 @@
+name: SQA CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # 1) Build + Security Audit + Playwright E2E/API tests
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        cache: 'npm'
+
+    - name: Install Dependencies
+      run: npm ci
+
+    - name: Security Audit (npm audit)
+      run: npm audit --audit-level=high
+
+    - name: Install Playwright Browsers
+      run: npx playwright install --with-deps chromium
+
+    # playwright.config.js สั่ง webServer เปิด mock server ให้เองและรอจนพร้อม
+    - name: Run Playwright E2E/API Tests
+      run: npm test
+
+    - name: Upload Playwright Report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: playwright-report
+        path: |
+          playwright-report/
+          test-results/
+        retention-days: 7
+
+  # 2) SonarQube code quality scan + Quality Gate ทุกครั้งที่มี push / PR
+  #    ต้องตั้ง repository secrets: SONAR_TOKEN และ SONAR_HOST_URL
+  sonarqube:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0   # ให้ SonarQube วิเคราะห์ new code จากประวัติ git ได้
+
+    - name: SonarQube Scan
+      uses: SonarSource/sonarqube-scan-action@v5
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+      with:
+        # รอผล Quality Gate — job จะ fail ถ้า Quality Gate ไม่ผ่าน
+        args: >
+          -Dsonar.qualitygate.wait=true
+          -Dsonar.qualitygate.timeout=300
+
+  # 3) k6 load test (P95 < 2s, error rate < 1%) หลังเทสต์ฟังก์ชันผ่านแล้ว
+  performance:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        cache: 'npm'
+
+    - name: Install Dependencies
+      run: npm ci --omit=dev
+
+    - name: Start Mock Server
+      run: |
+        npm start &
+        curl --retry 15 --retry-connrefused --retry-delay 1 -sf http://localhost:3000 > /dev/null
+
+    - name: Setup k6
+      uses: grafana/setup-k6-action@v1
+
+    - name: Run k6 Load Test
+      run: k6 run k6-load-test.js
+      env:
+        BASE_URL: http://localhost:3000

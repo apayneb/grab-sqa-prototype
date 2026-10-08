@@ -1,0 +1,15 @@
+{
+  "name": "grab-sqa-prototype",
+  "version": "1.0.0",
+  "description": "SQA Prototype for Grab Core Workflows",
+  "scripts": {
+    "start": "node server.js",
+    "test": "playwright test"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.39.0"
+  }
+}

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grab SQA Mock App</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background-color: #f7f7f7; }
+        h2 { color: #333; }
+        .card { background: white; border: 1px solid #e0e0e0; padding: 20px; border-radius: 8px; margin-bottom: 20px; max-width: 400px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        button { background-color: #00B14F; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; width: 100%; }
+        button:hover { background-color: #008a3d; }
+        .status { margin-top: 15px; font-weight: bold; text-align: center; font-size: 18px; }
+    </style>
+</head>
+<body>
+    <h2>Grab SQA Reference Prototype</h2>
+    <p><a href="/dashboard.html">Quality Metrics Dashboard →</a></p>
+
+    <div class="card">
+        <h3>🍔 Food Ordering</h3>
+        <p>Select your favorite meal and checkout.</p>
+        <button id="btn-order-food">Order Food</button>
+        <div id="food-status" class="status"></div>
+    </div>
+
+    <div class="card">
+        <h3>🚗 Ride Booking</h3>
+        <p>Enter pickup and destination to book a ride.</p>
+        <button id="btn-book-ride">Book Ride</button>
+        <div id="ride-status" class="status"></div>
+    </div>
+
+    <script>
+        // เรียก Mock API จริง แล้วแสดงสถานะที่ server ตอบกลับ (CONFIRMED / REJECTED / ERROR)
+        async function submit(url, payload, statusEl, pendingText) {
+            statusEl.innerText = pendingText;
+            statusEl.style.color = '#ff9800';
+            try {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const data = await res.json();
+                statusEl.innerText = data.status || 'ERROR';
+                statusEl.style.color = res.ok ? '#00B14F' : '#d32f2f';
+            } catch (err) {
+                statusEl.innerText = 'ERROR';
+                statusEl.style.color = '#d32f2f';
+            }
+        }
+
+        document.getElementById('btn-order-food').addEventListener('click', () => {
+            submit('/api/order', {
+                restaurantId: 'R-001',
+                items: [{ menuId: 'M-001', qty: 1 }],
+                paymentMethod: 'GrabPay',
+            }, document.getElementById('food-status'), 'Processing...');
+        });
+
+        document.getElementById('btn-book-ride').addEventListener('click', () => {
+            submit('/api/ride', {
+                pickup: 'Siam Paragon',
+                destination: 'Chatuchak',
+                rideType: 'GrabCar',
+            }, document.getElementById('ride-status'), 'Finding driver...');
+        });
+    </script>
+</body>
+</html>
