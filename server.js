@@ -2,6 +2,9 @@ const express = require('express');
 const app = express();
 const port = process.env.PORT || 3000;
 
+// ไม่เปิดเผยว่าใช้ Express ผ่าน header X-Powered-By (SonarQube S5689)
+app.disable('x-powered-by');
+
 app.use(express.static('public'));
 app.use(express.json());
 
